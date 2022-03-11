@@ -1,3 +1,7 @@
+class NoMoneyNoPower(Exception):
+    """Статус начинающего."""
+
+
 class ResponseStatusIsNotOK(Exception):
     """Статус ответа сервера отличный от `OК`."""
 

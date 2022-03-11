@@ -2,11 +2,13 @@ import logging
 import os
 import sys
 import time
+import json
 
 from http import HTTPStatus
 
 import requests
 import telegram
+from telegram.error import TelegramError
 
 from dotenv import load_dotenv
 
@@ -48,6 +50,8 @@ def send_message(bot, message):
     """Отправка сообщений в телеграм-чат."""
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
+    except TelegramError:
+        logger.error('')
     except err.NoSendMessage:
         logger.error('сообщение не отправлено')
 
@@ -56,34 +60,42 @@ def get_api_answer(current_timestamp):
     """Запрос к эндпойнту каждые 10 минут."""
     timestamp = current_timestamp or int(time.time())
     params = {'from_date': timestamp}
-    response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+    try:
+        response = requests.get(ENDPOINT, headers=HEADERS, params=params)
+    except requests.exceptions.RequestException as e:
+        logger.error('URL недоступен')
+        raise SystemExit(e, 'URL недоступен')
     if response.status_code != HTTPStatus.OK:
         logger.error(f'код ответа сервера не соответствует.\
-                        Код отввета API {response.status_code}')
-        raise err.ResponseStatusIsNotOK(f'код ответа сервера не соответствует.\
-                           Код отввета API {response.status_code}')
+                      Код ответа API {response.status_code}')
+        raise err.ResponseStatusIsNotOK(f'код ответа сервера\
+            не соответствует.Код отввета API {response.status_code}')
     elif response.status_code == HTTPStatus.OK:
-        response = response.json()
-        return response
+        try:
+            response = response.json()
+            return response
+        except json.decoder.JSONDecodeError:
+            logger.error('ответ API не преобразуется в Json')
     else:
         logger.error('другие сбои эндпойнта')
         raise err.ResponseStatusIsNotOK('другие сбои эндпойнта')
-    # print(response)
-    # print(type(response))
-    # return response
 
 
 def check_response(response):
     """Проверка API на корректность ответа."""
     if type(response) is not dict:
         raise TypeError('формат ответа АPI должен быть словарем')
-    elif ['homeworks'][0] not in response:
-        raise IndexError('нет домашки в ответе API')
+    elif 'homeworks' not in response:
+        raise KeyError('нет ключа "homeworks" в ответе API')
+    elif 'current_date' not in response:
+        raise KeyError('нет ключа "current_date" в ответе API')
     elif type(response['current_date']) is not int:
         raise TypeError('формат времени ответа API должно быть числом')
     elif type(response['homeworks']) is not list:
-        raise TypeError('формат названия домашки API должен быть строкой')
+        raise TypeError('формат домашки в ответе API должен быть списком')
     homework = response['homeworks']
+
+    print(type(response['homeworks']))
 
     return homework
 
@@ -102,16 +114,10 @@ def parse_status(homework):
 
     homework_name = homework['homework_name']
     homework_status = homework['status']
-    for status in HOMEWORK_STATUSES.keys():
-        if status == homework_status:
-            verdict = HOMEWORK_STATUSES[status]
-            return f'Изменился статус проверки работы "{homework_name}".\
-                    {verdict}'
-        # else:
-        #     logging.error('неизвестное значение "homework_name",\
-        #                   "homework_status"')
-        #     raise KeyError('неизвестное значение "homework_name",\
-        #                    "homework_status"')
+    if homework_status in HOMEWORK_STATUSES.keys():
+        verdict = HOMEWORK_STATUSES[homework_status]
+        return f'Изменился статус проверки работы "{homework_name}".\
+                                                   {verdict}'
 
 
 def check_tokens():
@@ -132,13 +138,14 @@ def main():
     while True:
         try:
             response = get_api_answer(current_timestamp)
-            homework = check_response(response)
-            print(response)
-            print(homework)
-            if len(homework) == 0:
+            homeworks = check_response(response)
+            print(type(homeworks))
+            if len(homeworks) == 0:
                 logger.info('нет изменений статуса домашней работы')
-                send_message(bot, 'пока пусто')
+                send_message(bot, 'ничего')
+                print(len(homeworks))
             else:
+                homework = homeworks[0]
                 message = parse_status(homework)
                 send_message(bot, message)
                 logger.info(f'отправка сообщения в Telegram "{message}"')
@@ -151,9 +158,6 @@ def main():
             logger.error(message, exc_info=True)
             send_message(bot, message)
             time.sleep(RETRY_TIME)
-        # else:
-        #     # logging.error('Другие сбои при запросе к эндпоинту.')
-        #     logger.critical(f'Отсутствует переменная окружения: {vars}')
 
 
 if __name__ == '__main__':
