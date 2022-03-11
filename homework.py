@@ -51,7 +51,7 @@ def send_message(bot, message):
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     except TelegramError:
-        logger.error('')
+        logger.warning(f'не получается отправить в {TELEGRAM_CHAT_ID}')
     except err.NoSendMessage:
         logger.error('сообщение не отправлено')
 
@@ -95,8 +95,6 @@ def check_response(response):
         raise TypeError('формат домашки в ответе API должен быть списком')
     homework = response['homeworks']
 
-    print(type(response['homeworks']))
-
     return homework
 
 
@@ -139,11 +137,9 @@ def main():
         try:
             response = get_api_answer(current_timestamp)
             homeworks = check_response(response)
-            print(type(homeworks))
             if len(homeworks) == 0:
                 logger.info('нет изменений статуса домашней работы')
-                send_message(bot, 'ничего')
-                print(len(homeworks))
+                send_message(bot, 'нет изменений статуса домашней работы')
             else:
                 homework = homeworks[0]
                 message = parse_status(homework)
