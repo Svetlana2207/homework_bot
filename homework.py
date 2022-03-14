@@ -1,16 +1,14 @@
+import json
 import logging
 import os
 import sys
 import time
-import json
-
 from http import HTTPStatus
 
 import requests
 import telegram
-from telegram.error import TelegramError
-
 from dotenv import load_dotenv
+from telegram.error import TelegramError
 
 import exceptions as err
 
@@ -51,9 +49,7 @@ def send_message(bot, message):
     try:
         bot.send_message(chat_id=TELEGRAM_CHAT_ID, text=message)
     except TelegramError:
-        logger.warning(f'не получается отправить в {TELEGRAM_CHAT_ID}')
-    except err.NoSendMessage:
-        logger.error('сообщение не отправлено')
+        logger.error(f'не получается отправить в {TELEGRAM_CHAT_ID}')
 
 
 def get_api_answer(current_timestamp):
@@ -112,9 +108,8 @@ def parse_status(homework):
 
     homework_name = homework['homework_name']
     homework_status = homework['status']
-    if homework_status in HOMEWORK_STATUSES.keys():
-        verdict = HOMEWORK_STATUSES[homework_status]
-        return f'Изменился статус проверки работы "{homework_name}".\
+    verdict = HOMEWORK_STATUSES[homework_status]
+    return f'Изменился статус проверки работы "{homework_name}".\
                                                    {verdict}'
 
 
@@ -139,7 +134,7 @@ def main():
             homeworks = check_response(response)
             if len(homeworks) == 0:
                 logger.info('нет изменений статуса домашней работы')
-                send_message(bot, 'нет изменений статуса домашней работы')
+                send_message(bot, 'нет изменений в статусе домашней работы')
             else:
                 homework = homeworks[0]
                 message = parse_status(homework)
