@@ -1,3 +1,4 @@
+
 import json
 import logging
 import os
@@ -134,7 +135,6 @@ def main():
             homeworks = check_response(response)
             if len(homeworks) == 0:
                 logger.info('нет изменений статуса домашней работы')
-                send_message(bot, 'нет изменений в статусе домашней работы')
             else:
                 homework = homeworks[0]
                 message = parse_status(homework)
