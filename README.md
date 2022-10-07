@@ -6,7 +6,6 @@ Telegram-бот обращается к API сервиса Практикум.Д
 
 ### Технологии
 - Python
-- Django 
 - Python-telegram-bot
 
 ### Запуск проекта в dev-режиме
